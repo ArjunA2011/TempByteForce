@@ -1,0 +1,159 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.Vector2d;
+import com.acmerobotics.roadrunner.ftc.Actions;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+
+
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+
+
+@Autonomous(name = "CRAutoRR", group = "Auto")
+public class CRAutoRR extends LinearOpMode {
+
+    // Drive motors are handled by Road Runner
+    private DcMotor outtake, outtake2, intake, ramp;
+
+    private Servo blocker;
+
+    @Override
+    public void runOpMode() throws InterruptedException {
+
+        // Mechanisms
+        outtake  = hardwareMap.get(DcMotor.class, "outtake");
+        outtake2 = hardwareMap.get(DcMotor.class, "outtake2");
+        intake   = hardwareMap.get(DcMotor.class, "intake");
+        ramp     = hardwareMap.get(DcMotor.class, "ramp");
+        blocker  = hardwareMap.get(Servo.class, "blocker");
+
+        outtake.setDirection(DcMotorSimple.Direction.REVERSE);
+        outtake2.setDirection(DcMotorSimple.Direction.REVERSE);
+        intake.setDirection(DcMotorSimple.Direction.REVERSE);
+
+
+        // Start pose for RR
+        Pose2d startPose = new Pose2d(0, 0, 0);
+        MecanumDrive drive = new MecanumDrive(hardwareMap, startPose);
+
+
+        waitForStart();
+        if (isStopRequested()) return;
+
+        // ---------------------------
+        // PRELOAD SCORING SEQUENCE
+        // ---------------------------
+
+        intake.setPower(1.0);
+        outtake.setPower(0.9);
+        outtake2.setPower(0.95);
+        blocker.setPosition(0.95);  // open blocker
+
+
+        // Drive back 24–30 inches
+        Actions.runBlocking(
+                drive.actionBuilder(startPose)
+
+                        .lineToX(-85)
+
+
+                        .build()
+        );
+
+        Pose2d currentPose = drive.localizer.getPose();
+
+
+        ramp.setPower(0.9);
+        sleep(2000);
+
+
+        // stop outtake and close blocker
+        blocker.setPosition(0.5);
+
+        Pose2d poseAfterDump = drive.localizer.getPose();
+
+        // ---------------------------
+        // MOVE TO NEXT CYCLE AREA
+        // ---------------------------
+
+        ramp.setPower(0.9);
+
+        sleep(1000);
+        outtake.setPower(0);
+        outtake2.setPower(0);
+
+        Actions.runBlocking(
+                drive.actionBuilder(poseAfterDump)
+                        // move further back
+
+                        .turn(Math.toRadians(-45))
+
+                        .lineToX(55)
+
+
+
+
+
+
+                        .build()
+        );
+        sleep(1300);
+        Pose2d pose = drive.localizer.getPose();
+
+
+
+        intake.setPower(1.0);
+        ramp.setPower(0.0);
+
+
+        outtake.setPower(0);
+        outtake2.setPower(0);
+
+
+
+
+        Pose2d poseStack = drive.localizer.getPose();
+        Actions.runBlocking(
+                drive.actionBuilder(poseStack)
+                        .lineToX(-40)
+
+                        .turn(Math.toRadians(80))
+                        .build()
+
+
+
+
+        );
+
+
+        outtake.setPower(.9);
+        outtake2.setPower(.9);
+        sleep(500);
+        blocker.setPosition(.9);
+        sleep(500);
+        ramp.setPower(1.0);
+        sleep(5000);
+
+        Pose2d poseFinal=drive.localizer.getPose();
+        Actions.runBlocking(
+                drive.actionBuilder(poseFinal)
+                        
+                        .turn(-10)
+                        .lineToX(55)
+                        .lineToX(35)
+                        .turn(80)
+
+
+
+
+                        .build()
+        );
+
+        sleep(10000);
+        outtake.setPower(0);
+    }
+}
