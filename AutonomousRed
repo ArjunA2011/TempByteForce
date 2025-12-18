@@ -48,13 +48,13 @@ public class CRAutoRR extends LinearOpMode {
         // PRELOAD SCORING SEQUENCE
         // ---------------------------
 
-        intake.setPower(1.0);
-        outtake.setPower(0.9);
-        outtake2.setPower(0.95);
-        blocker.setPosition(0.95);  // open blocker
+        intake.setPower(1);
+        outtake.setPower(.9);
+        outtake2.setPower(.9);
+        blocker.setPosition(0.9);  // open blocker
 
 
-        // Drive back 24–30 inches
+        // Drive back
         Actions.runBlocking(
                 drive.actionBuilder(startPose)
 
@@ -68,7 +68,7 @@ public class CRAutoRR extends LinearOpMode {
 
 
         ramp.setPower(0.9);
-        sleep(2000);
+        sleep(1000);
 
 
         // stop outtake and close blocker
@@ -82,17 +82,18 @@ public class CRAutoRR extends LinearOpMode {
 
         ramp.setPower(0.9);
 
-        sleep(1000);
+
         outtake.setPower(0);
         outtake2.setPower(0);
+        intake.setPower(1);
 
         Actions.runBlocking(
                 drive.actionBuilder(poseAfterDump)
-                        // move further back
 
-                        .turn(Math.toRadians(-45))
 
-                        .lineToX(55)
+                        .turn(Math.toRadians(-50))
+
+                        .lineToX(53)
 
 
 
@@ -101,7 +102,7 @@ public class CRAutoRR extends LinearOpMode {
 
                         .build()
         );
-        sleep(1300);
+        sleep(500);
         Pose2d pose = drive.localizer.getPose();
 
 
@@ -110,8 +111,7 @@ public class CRAutoRR extends LinearOpMode {
         ramp.setPower(0.0);
 
 
-        outtake.setPower(0);
-        outtake2.setPower(0);
+
 
 
 
@@ -121,7 +121,7 @@ public class CRAutoRR extends LinearOpMode {
                 drive.actionBuilder(poseStack)
                         .lineToX(-40)
 
-                        .turn(Math.toRadians(80))
+                        .turn(Math.toRadians(75))
                         .build()
 
 
@@ -130,28 +130,40 @@ public class CRAutoRR extends LinearOpMode {
         );
 
 
-        outtake.setPower(.9);
-        outtake2.setPower(.9);
-        sleep(500);
+        outtake.setPower(.90);
+        outtake2.setPower(.90);
+
         blocker.setPosition(.9);
         sleep(500);
         ramp.setPower(1.0);
-        sleep(5000);
+        sleep(3000);
+        outtake.setPower(0);
+        outtake2.setPower(0);
+        blocker.setPosition(.5);
 
         Pose2d poseFinal=drive.localizer.getPose();
         Actions.runBlocking(
-                drive.actionBuilder(poseFinal)
-                        
-                        .turn(-10)
-                        .lineToX(55)
-                        .lineToX(35)
-                        .turn(80)
+                drive.actionBuilder(currentPose)
+                        .lineToX(-20)
+                        .turn(Math.toRadians(-50))
+                        .lineToX(43)
+                        .lineToX(-20)
+                        .turn(Math.toRadians(48))
+                        .strafeTo(new Vector2d(pose.position.x,pose.position.y+93))
+
+
+
 
 
 
 
                         .build()
         );
+        sleep(500);
+
+        blocker.setPosition(0.9);
+        outtake.setPower(0.87);
+        outtake2.setPower(0.87);
 
         sleep(10000);
         outtake.setPower(0);
