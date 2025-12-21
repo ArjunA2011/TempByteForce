@@ -1,0 +1,106 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.roadrunner.*;
+import com.acmerobotics.roadrunner.ftc.*;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+
+import org.firstinspires.ftc.teamcode.messages.ThreeDeadWheelInputsMessage;
+
+@Config
+public final class ThreeDeadWheelLocalizer implements Localizer {
+
+    public static class Params {
+        public double par0YTicks = 6518.9;      // left parallel offset
+        public double par1YTicks = -6518.9;     // right parallel offset
+        public double perpXTicks = -1955;      // perpendicular offset
+    }
+
+    public static Params PARAMS = new Params();
+
+    public final Encoder par0, par1, perp;
+
+    private final double inPerTick;
+
+    private int lastPar0Pos, lastPar1Pos, lastPerpPos;
+    private boolean initialized = false;
+
+    private Pose2d pose;
+
+    public ThreeDeadWheelLocalizer(HardwareMap hardwareMap, double inPerTick, Pose2d initialPose) {
+
+        // YOUR ODOMETRY: remapped to intake/outtake/ramp
+        par0 = new OverflowEncoder(new RawEncoder(hardwareMap.get(DcMotorEx.class, "intake")));
+        par1 = new OverflowEncoder(new RawEncoder(hardwareMap.get(DcMotorEx.class, "outtake")));
+        perp = new OverflowEncoder(new RawEncoder(hardwareMap.get(DcMotorEx.class, "ramp")));
+
+        this.inPerTick = inPerTick;
+        this.pose = initialPose;
+
+        FlightRecorder.write("THREE_DEAD_WHEEL_PARAMS", PARAMS);
+    }
+
+    @Override
+    public Pose2d getPose() {
+        return pose;
+    }
+
+    @Override
+    public void setPose(Pose2d pose) {
+        this.pose = pose;
+    }
+
+    @Override
+    public PoseVelocity2d update() {
+
+        PositionVelocityPair p0 = par0.getPositionAndVelocity();
+        PositionVelocityPair p1 = par1.getPositionAndVelocity();
+        PositionVelocityPair pp = perp.getPositionAndVelocity();
+
+        FlightRecorder.write("THREE_DEAD_WHEEL_INPUTS", new ThreeDeadWheelInputsMessage(p0, p1, pp));
+
+        if (!initialized) {
+            initialized = true;
+            lastPar0Pos = p0.position;
+            lastPar1Pos = p1.position;
+            lastPerpPos = pp.position;
+            return new PoseVelocity2d(new Vector2d(0, 0), 0);
+        }
+
+        int d0 = p0.position - lastPar0Pos;
+        int d1 = p1.position - lastPar1Pos;
+        int dp = pp.position - lastPerpPos;
+
+        lastPar0Pos = p0.position;
+        lastPar1Pos = p1.position;
+        lastPerpPos = pp.position;
+
+        // MUST HAVE <Time> EVERYWHERE
+        Twist2dDual<Time> twist = new Twist2dDual<>(
+                new Vector2dDual<>(
+                        new DualNum<Time>(new double[]{
+                                (PARAMS.par0YTicks * d1 - PARAMS.par1YTicks * d0)
+                                        / (PARAMS.par0YTicks - PARAMS.par1YTicks),
+                                (PARAMS.par0YTicks * p1.velocity - PARAMS.par1YTicks * p0.velocity)
+                                        / (PARAMS.par0YTicks - PARAMS.par1YTicks)
+                        }).times(inPerTick),
+
+                        new DualNum<Time>(new double[]{
+                                (PARAMS.perpXTicks * (d1 - d0)
+                                        / (PARAMS.par0YTicks - PARAMS.par1YTicks)) + dp,
+                                (PARAMS.perpXTicks * (p1.velocity - p0.velocity)
+                                        / (PARAMS.par0YTicks - PARAMS.par1YTicks)) + pp.velocity
+                        }).times(inPerTick)
+                ),
+
+                new DualNum<Time>(new double[]{
+                        (d0 - d1) / (PARAMS.par0YTicks - PARAMS.par1YTicks),
+                        (p0.velocity - p1.velocity) / (PARAMS.par0YTicks - PARAMS.par1YTicks)
+                })
+        );
+
+        pose = pose.plus(twist.value());
+        return twist.velocity().value();
+    }
+}
