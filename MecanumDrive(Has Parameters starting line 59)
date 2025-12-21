@@ -1,7 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import androidx.annotation.NonNull;
-
+import org.firstinspires.ftc.teamcode.ThreeDeadWheelLocalizer;
 import com.acmerobotics.dashboard.canvas.Canvas;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
@@ -62,10 +62,10 @@ public class MecanumDrive {
         // IMU ORIENTATION
         // -----------------------------
         public RevHubOrientationOnRobot.LogoFacingDirection logoFacingDirection =
-                RevHubOrientationOnRobot.LogoFacingDirection.UP;
+                RevHubOrientationOnRobot.LogoFacingDirection.FORWARD;
 
         public RevHubOrientationOnRobot.UsbFacingDirection usbFacingDirection =
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD;
+                RevHubOrientationOnRobot.UsbFacingDirection.UP;
 
         // -----------------------------
         // DRIVE CONSTANTS (CORE FIXES)
@@ -102,7 +102,7 @@ public class MecanumDrive {
         public double axialVelGain = 0.1;
         public double lateralVelGain = 0.1;
         public double headingVelGain = 0.1;
-        }
+    }
 
     public static Params PARAMS = new Params();
 
@@ -267,7 +267,7 @@ public class MecanumDrive {
 
         voltageSensor = hardwareMap.voltageSensor.iterator().next();
 
-        localizer = new DriveLocalizer(pose);
+        localizer = new ThreeDeadWheelLocalizer(hardwareMap, PARAMS.inPerTick, pose);
 
         FlightRecorder.write("MECANUM_PARAMS", PARAMS);
     }
