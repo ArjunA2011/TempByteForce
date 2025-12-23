@@ -1,0 +1,4 @@
+public double inPerTick = 0.002968;
+        public double lateralInPerTick = 0.002968;
+        public double trackWidthTicks = 3369.27;
+f
