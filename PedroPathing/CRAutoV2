@@ -1,0 +1,329 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.paths.PathChain;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Servo;
+
+@Autonomous(name = "Close Red Auto Version 2", group = "Auto")
+public class CRV2 extends LinearOpMode {
+
+    private Follower follower;
+
+
+    // Motors
+    private DcMotor leftFront, rightFront, leftBack, rightBack;
+    private DcMotor outtake, outtake2, intake, ramp;
+    private Servo blocker;
+    private void setOuttakePower(double basePower) {
+
+        double voltage = hardwareMap.voltageSensor.iterator().next().getVoltage();
+        double power = basePower;
+
+
+        if (voltage >= 12.40 && voltage <= 12.60) {
+            power = basePower;  // Your tuned sweet spot
+        }
+        else if (voltage > 12.60 && voltage <= 12.80) {
+            power = basePower - 0.02;
+        }
+        else if (voltage > 12.80 && voltage <= 13.00) {
+            power = basePower - 0.06;
+        }
+        else if (voltage > 13.00 && voltage <= 13.20) {
+            power = basePower - 0.07;
+        }
+        else if (voltage > 13.20 && voltage <= 13.40) {
+            power = basePower - 0.08;
+        }
+        else if (voltage > 13.40 && voltage <= 13.50) {
+            power = basePower - 0.10;  // highest voltage → most reduction
+        }
+
+        // Safety clamp
+        power = Math.max(-1.0, Math.min(1.0, power));
+
+        outtake.setPower(power);
+        outtake2.setPower(power);
+
+        telemetry.addData("Voltage", voltage);
+        telemetry.addData("AdjustedOuttakePower", power);
+        telemetry.update();
+    }
+    @Override
+    public void runOpMode() throws InterruptedException {
+
+        follower = Constants.createFollower(hardwareMap);
+
+        // Initialize motors
+        leftFront = hardwareMap.get(DcMotor.class, "leftFront");
+        rightFront = hardwareMap.get(DcMotor.class, "rightFront");
+        leftBack = hardwareMap.get(DcMotor.class, "leftBack");
+        rightBack = hardwareMap.get(DcMotor.class, "rightBack");
+
+        outtake = hardwareMap.get(DcMotor.class, "outtake");
+        outtake2 = hardwareMap.get(DcMotor.class, "outtake2");
+        intake = hardwareMap.get(DcMotor.class, "intake");
+        ramp = hardwareMap.get(DcMotor.class, "ramp");
+        blocker = hardwareMap.get(Servo.class, "blocker");
+
+        leftFront.setDirection(DcMotor.Direction.REVERSE);
+        leftBack.setDirection(DcMotor.Direction.REVERSE);
+        intake.setDirection(DcMotor.Direction.REVERSE);
+        outtake.setDirection(DcMotor.Direction.REVERSE);
+        outtake2.setDirection(DcMotor.Direction.REVERSE);
+
+        // ⭐ The ONLY fixed pose
+        follower.setStartingPose(new Pose(
+                130.0,
+                128.5,
+                Math.toRadians(45)
+        ));
+
+        telemetry.addLine("PEDRO READY");
+        telemetry.update();
+
+        waitForStart();
+        if (isStopRequested()) return;
+
+        // ✅ Turn on outtakes at 0.7 power as soon as start
+        setOuttakePower(0.85);
+
+        // -------------------------------
+        // PATH 1
+        // -------------------------------
+        PathChain p1 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        new Pose(130, 128.5),
+                        new Pose(105, 105)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(45))
+                .build();
+        run(p1);
+
+        // ✅ Turn on ramp at full speed after path 1 finishes
+        ramp.setPower(1.0);
+        intake.setPower(1.0);
+        sleep(1500);
+
+
+        // -------------------------------
+        // PATH 2
+        // -------------------------------
+        PathChain p2 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(105, 92)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                .build();
+        run(p2);
+        blocker.setPosition(0.45);
+        outtake.setPower(0);
+        outtake2.setPower(0);
+
+
+        // -------------------------------
+        // PATH 3
+        // -------------------------------
+        PathChain p3 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(135, 92)
+
+                ))
+                .setTangentHeadingInterpolation()
+                .build();
+        run(p3);
+        PathChain p0 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(140, 82)
+
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0),Math.toRadians(100))
+                .build();
+        run(p0);
+        sleep(1000);
+
+        sleep(500);
+        ramp.setPower(0);
+        intake.setPower(0);
+        setOuttakePower(0.82);
+
+
+        // -------------------------------
+        // PATH 4
+        // -------------------------------
+        PathChain p4 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(100, 100)
+                ))
+                .setConstantHeadingInterpolation(Math.toRadians(45))
+                .build();
+        run(p4);
+        blocker.setPosition(0.9);
+        sleep(500);
+        ramp.setPower(1);
+        intake.setPower(1);
+        sleep(1500);
+
+        // -------------------------------
+        // PATH 5
+        // -------------------------------
+        PathChain p5 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(100, 69)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
+                .build();
+        run(p5);
+        blocker.setPosition(0.45);
+        outtake.setPower(0);
+        outtake2.setPower(0);
+        // -------------------------------
+        // PATH 6
+        // -------------------------------
+        PathChain p6 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(137, 69)
+                ))
+                .setTangentHeadingInterpolation()
+                .build();
+        run(p6);
+
+        leftFront.setPower(-1);
+        leftBack.setPower(-1);
+        rightBack.setPower(-1);
+        rightFront.setPower(-1);
+        sleep(250);
+        leftFront.setPower(0);
+        leftBack.setPower(0);
+        rightBack.setPower(0);
+        rightFront.setPower(0);
+
+
+
+       setOuttakePower(0.8);
+        ramp.setPower(0);
+        intake.setPower(0);
+        PathChain p7 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(139, 72)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(90))
+                .build();
+        run(p7);
+        // -------------------------------
+        // PATH 7
+        // -------------------------------
+
+        // -------------------------------
+        // PATH 8
+        // -------------------------------
+
+        PathChain p8 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(100, 95)
+
+                ))
+                .setConstantHeadingInterpolation(Math.toRadians(45))
+                .build();
+        run(p8);
+
+        blocker.setPosition(0.9);
+        sleep(500);
+        ramp.setPower(1);
+        intake.setPower(1);
+        sleep(1500);
+        // -------------------------------
+        // PATH 9
+        // -------------------------------
+        PathChain p9 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(106, 48)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(10))
+                .build();
+        run(p9);
+        blocker.setPosition(0.48);
+        outtake.setPower(0);
+        outtake2.setPower(0);
+
+        // -------------------------------
+        // PATH 10
+        // -------------------------------
+        PathChain p10 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(147, 48)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(0))
+                .build();
+        run(p10);
+        sleep(200);
+        intake.setPower(0);
+        ramp.setPower(0);
+        setOuttakePower(0.83);
+        // -------------------------------
+        // PATH 11
+        // -------------------------------
+        PathChain p11 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(100, 98)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                .build();
+        run(p11);
+
+        blocker.setPosition(0.9);
+        sleep(500);
+        ramp.setPower(1);
+        intake.setPower(1);
+        sleep(1500);
+
+        PathChain p12 = follower.pathBuilder()
+                .addPath(new BezierLine(
+                        follower.getPose(),
+                        new Pose(100, 80)
+                ))
+                .setLinearHeadingInterpolation(Math.toRadians(0), Math.toRadians(45))
+                .build();
+        run(p12);
+
+
+        telemetry.addLine("AUTO DONE");
+        telemetry.update();
+
+    }
+
+
+    // =====================================================
+    //  CLEAN RUN FUNCTION — NO PAUSE BETWEEN PATHS
+    // =====================================================
+    private void run(PathChain chain) {
+        follower.followPath(chain);
+
+        while (opModeIsActive() && follower.isBusy()) {
+            follower.update();
+
+            // optional telemetry
+            telemetry.addData("X", follower.getPose().getX());
+            telemetry.addData("Y", follower.getPose().getY());
+            telemetry.addData("Heading", Math.toDegrees(follower.getPose().getHeading()));
+            telemetry.update();
+        }
+    }
+}
