@@ -29,6 +29,7 @@ public class CRV2 extends LinearOpMode {
 
     private DcMotor leftFront, rightFront, leftBack, rightBack;
     private DcMotorEx outtake, outtake2, intake, ramp;
+    private Shooter shooter;
     private Servo blocker;
     private int i=0;
      VoltageSensor voltageSensor;
@@ -37,29 +38,17 @@ public class CRV2 extends LinearOpMode {
 
     // Shooter constants
 
-    
-    // PIDF (example values — tune later)
-    
 
-    
+    // PIDF (example values — tune later)
+
+
+
 
     // ⭐ Correct shooter function
 
-    private void setOuttakePower(double rpm) {
-        
-
-        
-        
 
 
-        outtake.setVelocity(rpm);
-        outtake2.setVelocity(rpm);
-    }
 
-    private void stopShooter() {
-        outtake.setVelocity(0);
-        outtake2.setVelocity(0);
-    }
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -69,6 +58,7 @@ public class CRV2 extends LinearOpMode {
         follower = Constants.createFollower(hardwareMap);
 
         // Motors
+
         leftFront = hardwareMap.get(DcMotor.class, "leftFront");
         rightFront = hardwareMap.get(DcMotor.class, "rightFront");
         leftBack = hardwareMap.get(DcMotor.class, "leftBack");
@@ -84,9 +74,8 @@ public class CRV2 extends LinearOpMode {
         leftFront.setDirection(DcMotor.Direction.REVERSE);
         leftBack.setDirection(DcMotor.Direction.REVERSE);
         intake.setDirection(DcMotor.Direction.FORWARD);
-        outtake.setDirection(DcMotor.Direction.REVERSE);
-        outtake2.setDirection(DcMotor.Direction.REVERSE);
 
+        shooter = new Shooter(outtake, outtake2, voltageSensor);
         // Shooter encoder + PIDF
         outtake.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtake2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
@@ -105,14 +94,14 @@ public class CRV2 extends LinearOpMode {
 
         // ✅ Turn on outtakes at 0.7 power as soon as start
 
-        setOuttakePower(1920);
+        shooter.spin(1830);
         // -------------------------------
         // PATH 1
         // -------------------------------
         PathChain p1 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         new Pose(130, 128.5),
-                        new Pose(107, 101)
+                        new Pose(105, 102)
                 ))
 
                 .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(45))
@@ -124,7 +113,7 @@ public class CRV2 extends LinearOpMode {
         sleep(500);
 
         // ✅ Turn on ramp at full speed after path 1 finishes
-        ramp.setPower(1.0);
+        ramp.setPower(0.45);
         intake.setPower(1.0);
         telemetry.addData("1. Outtake 1 Power",outtake.getPower());
         telemetry.addData("1. Outtake 2 Power",outtake2.getPower());
@@ -149,11 +138,11 @@ public class CRV2 extends LinearOpMode {
                         follower.getPose(),
                         new Pose(105, 92)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(40), Math.toRadians(0))
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
                 .build();
         run(p2);
         blocker.setPosition(0.45);
-        stopShooter();
+        shooter.stop();
 
 
         // -------------------------------
@@ -182,7 +171,7 @@ public class CRV2 extends LinearOpMode {
 
         ramp.setPower(0);
         intake.setPower(0);
-        setOuttakePower(1920);
+        shooter.spin(1830);
 
 
         // -------------------------------
@@ -198,7 +187,7 @@ public class CRV2 extends LinearOpMode {
         run(p4);
         blocker.setPosition(0.9);
         sleep(1250);
-        ramp.setPower(1);
+        ramp.setPower(0.4);
         intake.setPower(1);
         telemetry.addData("2. Outtake 1 Power",outtake.getPower());
         telemetry.addData("2. Outtake 2 Power",outtake2.getPower());
@@ -226,7 +215,7 @@ public class CRV2 extends LinearOpMode {
                 .build();
         run(p5);
         blocker.setPosition(0.48);
-        stopShooter();
+        shooter.stop();
         follower.setMaxPower(0.8);
         // -------------------------------
         // PATH 6
@@ -244,7 +233,7 @@ public class CRV2 extends LinearOpMode {
 
 
         intake.setPower(0);
-        setOuttakePower(1920);
+        shooter.spin(1830);
         ramp.setPower(0);
 
         PathChain p7 = follower.pathBuilder()
@@ -281,7 +270,7 @@ public class CRV2 extends LinearOpMode {
         telemetry.addData("3. Outtake 2 Power",outtake2.getVelocity());
         telemetry.update();
 
-        ramp.setPower(1);
+        ramp.setPower(0.4);
         intake.setPower(1);
         sleep(1500);
         telemetry.addData("3A. Outtake 1 Power",outtake.getPower());
@@ -298,11 +287,11 @@ public class CRV2 extends LinearOpMode {
                         follower.getPose(),
                         new Pose(106, 45)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(10))
+                .setLinearHeadingInterpolation(Math.toRadians(45), Math.toRadians(0))
                 .build();
         run(p9);
         blocker.setPosition(0.48);
-        stopShooter();
+        shooter.stop();
 
         follower.setMaxPower(0.8);
         // -------------------------------
@@ -320,7 +309,7 @@ public class CRV2 extends LinearOpMode {
         sleep(200);
         intake.setPower(0);
         ramp.setPower(0);
-        setOuttakePower(1920);
+        shooter.spin(1830);
         // -------------------------------
         // PATH 11
         // -------------------------------
@@ -341,7 +330,7 @@ public class CRV2 extends LinearOpMode {
         telemetry.addData("4. Outtake 2 Power",outtake2.getVelocity());
         telemetry.update();
 
-        ramp.setPower(1);
+        ramp.setPower(0.4);
         intake.setPower(1);
         sleep(1500);
         telemetry.addData("4A. Outtake 1 Power",outtake.getPower());
@@ -378,7 +367,7 @@ public class CRV2 extends LinearOpMode {
             follower.update();
 
             // optional telemetry
-
+            shooter.periodic();
 
             telemetry.addData("Outtake 1 Power",outtake.getPower());
             telemetry.addData("Outtake 2 Power",outtake2.getPower());
