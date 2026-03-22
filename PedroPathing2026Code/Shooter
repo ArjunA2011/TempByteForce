@@ -1,0 +1,225 @@
+package org.firstinspires.ftc.teamcode.pedroPathing;
+
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
+
+/**
+ * Shooter controller for goBILDA 6000 RPM motors
+ * Uses custom PIDF control with voltage compensation
+ * Validated against successful competition implementations
+ */
+public class Shooter {
+
+    private final DcMotorEx outtake, outtake2;
+    private final VoltageSensor voltageSensor;
+
+    private double targetRPM = 0;
+    private boolean emergencyStop = false;
+
+    // ===== TUNABLES =====
+    private static final double kP = 0.0025;     // Proportional gain
+    private static final double kI = 0.0006;     // Integral gain
+    private static final double kD = 0.0;        // Derivative gain (set to 0 if not needed)
+    private static final double kF = 0.00034;    // Feedforward gain (voltage-scaled)
+
+    private static final double I_CLAMP = 0.12;  // Integral anti-windup limit
+    private static final double MAX_POWER = 1.0; // Maximum motor power
+    private static final double TICKS_PER_REV = 28.0;  // goBILDA 6000 RPM motor
+    private static final double MAX_RPM = 3200;  // Safety limit
+
+    private double integral = 0.0;
+    private double lastError = 0.0;
+    private long lastTime;
+
+    // For diagnostics
+    private double lastVoltage = 12.0;
+
+    public Shooter(DcMotorEx outtake, DcMotorEx outtake2, VoltageSensor voltageSensor) {
+        this.outtake =outtake;
+        this.outtake2 = outtake2;
+        this.voltageSensor = voltageSensor;
+
+        outtake.setDirection(DcMotorEx.Direction.REVERSE);
+        outtake2.setDirection(DcMotorEx.Direction.REVERSE);
+
+        // Use RUN_WITHOUT_ENCODER for custom PID control
+        // (We still read velocity, just don't use SDK's internal PID)
+        outtake.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+       outtake2.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+
+        outtake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+       outtake2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+        lastTime = System.nanoTime();
+    }
+
+    /**
+     * Set desired shooter RPM
+     * @param rpm Target RPM (will be clamped to MAX_RPM)
+     */
+    public void spin(double rpm) {
+        double newTarget = Math.min(rpm, MAX_RPM);
+
+        // Reset integral on significant target change to prevent overshoot
+        if (Math.abs(newTarget - targetRPM) > 100) {
+            integral = 0;
+            lastError = 0;
+        }
+
+        targetRPM = newTarget;
+        emergencyStop = false;
+    }
+
+    /**
+     * Stop shooter completely
+     */
+    public void stop() {
+        targetRPM = 0;
+        integral = 0;
+        lastError = 0;
+       outtake.setPower(0);
+        outtake2.setPower(0);
+    }
+
+    /**
+     * Emergency stop - overrides all other commands
+     */
+    public void emergencyStop() {
+        emergencyStop = true;
+        stop();
+    }
+
+    /**
+     * Update shooter control - MUST be called every loop!
+     * Implements PIDF control with voltage compensation
+     */
+    public void periodic() {
+        // Emergency stop or zero target - stop motors
+        if (emergencyStop || targetRPM <= 0) {
+            stop();
+            return;
+        }
+
+        double currentRPM = getRPM();
+        double error = targetRPM - currentRPM;
+
+        // Calculate time delta
+        long now = System.nanoTime();
+        double dt = (now - lastTime) / 1e9;
+        lastTime = now;
+
+        // Skip if dt is invalid (first loop or time overflow)
+        if (dt <= 0 || dt > 0.2) return;
+
+        // Integral term with anti-windup
+        integral += error * dt;
+        integral = clamp(integral, -I_CLAMP, I_CLAMP);
+
+        // Derivative term (optional, set kD=0 if not needed)
+        double derivative = (error - lastError) / dt;
+        lastError = error;
+
+        // Voltage compensation for feedforward
+        double voltage = voltageSensor.getVoltage();
+
+        // Validate voltage reading (typical range: 11.0V - 14.8V)
+        if (voltage < 10.0 || voltage > 15.0) {
+            voltage = lastVoltage;  // Use last valid reading if sensor fails
+        } else {
+            lastVoltage = voltage;
+        }
+
+        // Voltage-normalized feedforward
+        double ff = (targetRPM * kF) / voltage;
+
+        // PIDF control output
+        double output = (kP * error) + (kI * integral) + (kD * derivative) + ff;
+        output = clamp(output, 0.0, MAX_POWER);
+
+        // Safety check: only set power if output is valid
+        if (Double.isFinite(output)) {
+            outtake.setPower(output);
+            outtake2.setPower(output);
+        }
+    }
+
+    /**
+     * Check if shooter is at target velocity and ready to fire
+     * @return true when within tolerance
+     */
+    public boolean isReady() {
+        return Math.abs(targetRPM - getRPM()) < 50;
+    }
+
+    /**
+     * Get current shooter RPM (average of both motors)
+     * @return Current RPM
+     */
+    public double getRPM() {
+        double rpmL = (outtake.getVelocity() / TICKS_PER_REV) * 60.0;
+        double rpmR = (outtake2.getVelocity() / TICKS_PER_REV) * 60.0;
+        return (rpmL + rpmR) / 2.0;
+    }
+
+    /**
+     * Get RPM for left motor
+     */
+    public double getLeftRPM() {
+        return (outtake.getVelocity() / TICKS_PER_REV) * 60.0;
+    }
+
+    /**
+     * Get RPM for right motor
+     */
+    public double getRightRPM() {
+        return (outtake2.getVelocity() / TICKS_PER_REV) * 60.0;
+    }
+
+    /**
+     * Get current error (target - actual)
+     */
+    public double getError() {
+        return targetRPM - getRPM();
+    }
+
+    /**
+     * Get current battery voltage
+     */
+    public double getVoltage() {
+        return lastVoltage;
+    }
+
+    /**
+     * Get current target RPM
+     */
+    public double getTargetRPM() {
+        return targetRPM;
+    }
+
+    /**
+     * Get current integral value (for tuning)
+     */
+    public double getIntegral() {
+        return integral;
+    }
+
+    /**
+     * Get formatted diagnostic string for telemetry
+     * @return Diagnostic information string
+     */
+    public String getDiagnostics() {
+        return String.format(
+                "Target: %.0f | L/R: %.0f/%.0f | Avg: %.0f | Err: %.0f | V: %.1f",
+                targetRPM, getLeftRPM(), getRightRPM(), getRPM(),
+                getError(), lastVoltage
+        );
+    }
+
+    /**
+     * Clamp a value between min and max
+     */
+    private double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
+    }
+}
