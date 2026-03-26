@@ -53,7 +53,8 @@ public class CBV2 extends LinearOpMode {
         // Shooter encoder + PIDF
         outtake.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         outtake2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        shooter.spin(230);
+        shooter.spin(10);
+
 
         // BLUE Starting pose: Red (130, 128.5, 45°) → Blue (-130, 128.5, 135°)
         follower.setStartingPose(new Pose(-130.0, 128.5, Math.toRadians(135)));
@@ -61,12 +62,17 @@ public class CBV2 extends LinearOpMode {
         telemetry.addLine("PEDRO READY - BLUE SIDE");
         telemetry.update();
 
+        Pose current = follower.getPose();
+
+        telemetry.addData("x", current.getX());
+        telemetry.addData("y", current.getY());
+        telemetry.update();
+
         waitForStart();
         if (isStopRequested()) return;
 
         // ✅ Turn on shooter
-        hood.setPosition(0.41);
-
+        hood.setPosition(0.35);
 
         // -------------------------------
         // PATH 1: Red (130, 128.5) → (108, 105) becomes Blue (-130, 128.5) → (-108, 105)
@@ -78,23 +84,27 @@ public class CBV2 extends LinearOpMode {
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(135))
                 .build();
+
         run(p1);
 
-        Pose current = follower.getPose();
+        current = follower.getPose();
         Pose shootingpose = new Pose(current.getX(), current.getY() - 10, current.getHeading()); // Y offset stays same
-
-        sleep(500);
 
         // ✅ Turn on ramp at full speed after path 1 finishes
         ramp.setPower(0.45);
         intake.setPower(1.0);
+
+        shoot();
+
+        // follower.update();
+        // ramp.setPower(0);
         telemetry.addData("1. Outtake 1 Power", outtake.getPower());
         telemetry.addData("1. Outtake 2 Power", outtake2.getPower());
         telemetry.addData("1. Outtake 1 Velocity", outtake.getVelocity());
         telemetry.addData("1. Outtake 2 Velocity", outtake2.getVelocity());
         telemetry.update();
 
-        sleep(1500);
+        //sleep(1500);
         telemetry.addData("1A. Outtake 1 Power", outtake.getPower());
         telemetry.addData("1A. Outtake 2 Power", outtake2.getPower());
         telemetry.addData("1A. Outtake 1 Velocity", outtake.getVelocity());
@@ -107,7 +117,7 @@ public class CBV2 extends LinearOpMode {
         PathChain p2 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         follower.getPose(),
-                        new Pose(-105, 92)
+                        new Pose(-90, 95)
                 ))
                 .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(180))
                 .build();
@@ -141,8 +151,8 @@ public class CBV2 extends LinearOpMode {
         sleep(1200);
 
         ramp.setPower(0);
-        intake.setPower(0);
-        shooter.spin(265);
+        intake.setPower(1);
+        shooter.spin(10);
 
         // -------------------------------
         // PATH 4: Shooting pose, heading 45° → 135°
@@ -155,18 +165,20 @@ public class CBV2 extends LinearOpMode {
                 .setConstantHeadingInterpolation(Math.toRadians(135))
                 .build();
         run(p4);
-
+        ramp.setPower(1);
         blocker.setPosition(0.9);
-        sleep(1250);
-        ramp.setPower(0.4);
-        intake.setPower(1);
+
+        shoot();
+
+        //ramp.setPower(0.4);
+        //intake.setPower(1);
         telemetry.addData("2. Outtake 1 Power", outtake.getPower());
         telemetry.addData("2. Outtake 2 Power", outtake2.getPower());
         telemetry.addData("2. Outtake 1 Velocity", outtake.getVelocity());
         telemetry.addData("2. Outtake 2 Velocity", outtake2.getVelocity());
         telemetry.update();
 
-        sleep(1500);
+        //sleep(1500);
         telemetry.addData("2B. Outtake 1 Power", outtake.getPower());
         telemetry.addData("2B. Outtake 2 Power", outtake2.getPower());
         telemetry.addData("2B. Outtake 1 Velocity", outtake.getVelocity());
@@ -181,7 +193,7 @@ public class CBV2 extends LinearOpMode {
                         follower.getPose(),
                         new Pose(-100, 69)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(180))
+                .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(183))
                 .build();
         run(p5);
 
@@ -195,7 +207,7 @@ public class CBV2 extends LinearOpMode {
         PathChain p6 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         follower.getPose(),
-                        new Pose(-140, 69)
+                        new Pose(-140, 67)
                 ))
                 .setTangentHeadingInterpolation()
                 .build();
@@ -203,17 +215,17 @@ public class CBV2 extends LinearOpMode {
 
         follower.setMaxPower(1);
 
-        intake.setPower(0);
-        shooter.spin(280);
+        intake.setPower(1);
+        shooter.spin(10);
         ramp.setPower(0);
 
         // PATH 7: Red (120, 69), 0°→90° becomes Blue (-120, 69), 180°→90°
         PathChain p7 = follower.pathBuilder()
                 .addPath(new BezierLine(
                         follower.getPose(),
-                        new Pose(-120, 69)
+                        new Pose(-120, 67)
                 ))
-                .setLinearHeadingInterpolation(Math.toRadians(180), Math.toRadians(90))
+                .setLinearHeadingInterpolation(Math.toRadians(183), Math.toRadians(90))
                 .build();
         run(p7);
 
@@ -278,9 +290,9 @@ public class CBV2 extends LinearOpMode {
 
         follower.setMaxPower(1);
         sleep(200);
-        intake.setPower(0);
+        intake.setPower(1);
         ramp.setPower(0);
-        shooter.spin(275);
+        shooter.spin(10);
 
 
         // -------------------------------
@@ -345,4 +357,19 @@ public class CBV2 extends LinearOpMode {
             telemetry.update();
         }
     }
-}
+
+    private void shoot() {
+        long endTime = System.currentTimeMillis() + 1500;
+
+        while (opModeIsActive() && System.currentTimeMillis() < endTime) {
+            shooter.periodic();
+
+                // ramp.setPower(0.45);
+                telemetry.addData("left shooter", shooter.getLeftRPM()
+                );
+                telemetry.addData("right shoot", shooter.getRightRPM());
+                telemetry.addData("rpm", shooter.getRPM());
+                telemetry.update();
+            }
+        }
+    }
